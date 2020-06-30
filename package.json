@@ -1,0 +1,22 @@
+{
+  "name": "createuserproofszipurl",
+  "version": "1.0.0",
+  "description": "AWS Lambda function code for creating zip files for the userProofs",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "keywords": [
+    "lambda",
+    "zip",
+    "userProofs"
+  ],
+  "author": "AB",
+  "license": "ISC",
+  "dependencies": {
+    "archiver": "^4.0.1",
+    "aws-sdk": "^2.706.0",
+    "fs": "0.0.1-security",
+    "stream": "0.0.2"
+  }
+}
