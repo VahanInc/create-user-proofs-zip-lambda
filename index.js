@@ -52,6 +52,9 @@ exports.handler = async (event, context, callback) => {
 					if(userProof.otherSideImageS3Key) {
 						imageKeys.push(userProof.otherSideImageS3Key);
 					}
+					if(userProof.aadharPdfUrl) {
+						imageKeys.push(userProof.aadharPdfUrl);
+					}
 				});
 			}
 
