@@ -41,58 +41,64 @@ exports.handler = async (event, context, callback) => {
 	const zipFileKeys = {};
 
 	for(const userId in event.userProofsByUserIds) {
-		const imageKeys = [];
-		if(event.userProofsByUserIds.hasOwnProperty(userId)) {
-			const userProofs = event.userProofsByUserIds[userId];
-			userProofs.forEach(userProof=> {
-				imageKeys.push(userProof.imageUrlS3Key);
-				if(userProof.otherSideImageS3Key) {
-					imageKeys.push(userProof.otherSideImageS3Key);
-				}
-			});
-		}
+
+		try {
+
+			const imageKeys = [];
+			if(event.userProofsByUserIds.hasOwnProperty(userId)) {
+				const userProofs = event.userProofsByUserIds[userId];
+				userProofs.forEach(userProof=> {
+					imageKeys.push(userProof.imageUrlS3Key);
+					if(userProof.otherSideImageS3Key) {
+						imageKeys.push(userProof.otherSideImageS3Key);
+					}
+				});
+			}
 
 
-		const s3GetObjectAsync = util.promisify(s3.getObject).bind(s3);
+			const s3GetObjectAsync = util.promisify(s3.getObject).bind(s3);
 
-	    const list = await Promise.all(imageKeys.map(key => new Promise((resolve, reject) => {
-	            s3GetObjectAsync({Bucket:event.s3Bucket, Key:key})
-	                .then(data => resolve( { data: data.Body, name: `${key.split('/').pop()}` } ));
-	        }
-	    ))).catch(err => { 
-	    	console.log(err);
-	    	throw new Error(err) 
-	    });
-
-	    const zipKey = `${S3_ZIP_FOLDER}/${userId}_${generateRandomString(6)}.zip`;
-
-       	const archive = archiver('zip');
-        archive.on('error', err => { throw new Error(err); } );
-
-        const  streamPassThrough = new stream.PassThrough();
-
-       	const s3Upload = streamTo(bucket, zipKey, streamPassThrough);
-
-	    s3Upload.on('httpUploadProgress', progress => {
-		        console.log(progress);
+		    const list = await Promise.all(imageKeys.map(key => new Promise((resolve, reject) => {
+		            s3GetObjectAsync({Bucket:event.s3Bucket, Key:key})
+		                .then(data => resolve( { data: data.Body, name: `${key.split('/').pop()}` } ));
+		        }
+		    ))).catch(err => { 
+		    	console.log(err);
+		    	throw new Error(err) 
 		    });
 
-	    await new Promise((resolve, reject) => { 
-	        s3Upload.on('close', resolve());
-	        s3Upload.on('end', resolve());
-	        s3Upload.on('error', reject());
-	        
-	        archive.pipe(streamPassThrough);
-	        list.forEach(itm => archive.append(itm.data, { name: itm.name }));
-	        archive.finalize();	
-	    }).catch(err => { 
-	    	console.log(err);
-	    	throw new Error(err) 
-	    });
+		    const zipKey = `${S3_ZIP_FOLDER}/${userId}_${generateRandomString(6)}.zip`;
 
-	 	await s3Upload.promise();
+	       	const archive = archiver('zip');
+	        archive.on('error', err => { throw new Error(err); } );
 
-	    zipFileKeys[userId] = zipKey;
+	        const  streamPassThrough = new stream.PassThrough();
+
+	       	const s3Upload = streamTo(bucket, zipKey, streamPassThrough);
+
+		    s3Upload.on('httpUploadProgress', progress => {
+			        console.log(progress);
+			    });
+
+		    await new Promise((resolve, reject) => { 
+		        s3Upload.on('close', resolve());
+		        s3Upload.on('end', resolve());
+		        s3Upload.on('error', reject());
+		        
+		        archive.pipe(streamPassThrough);
+		        list.forEach(itm => archive.append(itm.data, { name: itm.name }));
+		        archive.finalize();	
+		    }).catch(err => { 
+		    	console.log(err);
+		    	throw new Error(err);
+		    });
+
+		 	await s3Upload.promise();
+
+		    zipFileKeys[userId] = zipKey;
+		} catch(err) {
+			console.log(`Error creating zipFile for userId=${userId}`);
+		}
 
 	}
 
